@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Captioning with Vision-Language Models</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #06b6d4;
+            --primary-dark: #0891b2;
+            --secondary: #8b5cf6;
+            --accent: #f59e0b;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f1f5f9;
+            --text-light: #94a3b8;
+            --border: #334155;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #0891b2 0%, #8b5cf6 50%, #ec4899 100%);
+            color: white;
+            padding: 80px 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(6, 182, 212, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 50%, rgba(139, 92, 246, 0.2) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        
+        .hero > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .hero p {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            max-width: 700px;
+            margin: 0 auto 30px;
+        }
+
+        .hero-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+        }
+
+        .nav {
+            background: var(--card-bg);
+            padding: 15px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            gap: 30px;
+            overflow-x: auto;
+        }
+
+        .nav a {
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 500;
+            white-space: nowrap;
+            padding: 5px 0;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .nav a:hover {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        section {
+            margin-bottom: 60px;
+        }
+
+        h2 {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid var(--primary);
+        }
+
+        h3 {
+            font-size: 1.4rem;
+            color: var(--text);
+            margin: 30px 0 15px;
+        }
+
+        h4 {
+            font-size: 1.1rem;
+            color: var(--text);
+            margin: 20px 0 10px;
+        }
+
+        p {
+            margin-bottom: 15px;
+            color: var(--text);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 30px;
+            margin: 20px 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+        }
+
+        .card-highlight {
+            border-left: 4px solid var(--primary);
+            background: linear-gradient(135deg, #1e293b 0%, #1e3a5a 100%);
+        }
+
+        .architecture-diagram {
+            background: linear-gradient(135deg, #020617 0%, #1e293b 100%);
+            color: #e2e8f0;
+            border-radius: 16px;
+            padding: 30px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        .architecture-diagram pre {
+            margin: 0;
+            white-space: pre;
+        }
+
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+
+        .image-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            transition: transform 0.3s;
+            border: 1px solid var(--border);
+        }
+
+        .image-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(6, 182, 212, 0.3);
+        }
+
+        .image-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .image-card-content {
+            padding: 20px;
+        }
+
+        .image-card h4 {
+            font-size: 1rem;
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+
+        .caption-output {
+            background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+            border: 1px solid #10b981;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            color: #d1fae5;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: #293548;
+        }
+
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 12px;
+            padding: 25px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.95rem;
+            overflow-x: auto;
+            margin: 20px 0;
+            line-height: 1.8;
+            border: 1px solid #1e293b;
+        }
+
+        .code-block .comment {
+            color: #64748b;
+        }
+
+        .code-block .keyword {
+            color: #c084fc;
+        }
+
+        .code-block .string {
+            color: #86efac;
+        }
+
+        .code-block .function {
+            color: #67e8f9;
+        }
+        
+        .code-block .number {
+            color: #fbbf24;
+        }
+
+        .info-box {
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border: 1px solid;
+        }
+
+        .info-box.tip {
+            background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+            border-color: #10b981;
+            color: #d1fae5;
+        }
+
+        .info-box.warning {
+            background: linear-gradient(135deg, #78350f 0%, #92400e 100%);
+            border-color: #fbbf24;
+            color: #fef3c7;
+        }
+
+        .info-box.note {
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+            border-color: #60a5fa;
+            color: #dbeafe;
+        }
+
+        .info-box-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .flow-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin: 30px 0;
+        }
+
+        .flow-box {
+            background: var(--card-bg);
+            border: 2px solid var(--primary);
+            border-radius: 12px;
+            padding: 20px 25px;
+            text-align: center;
+            min-width: 150px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .flow-box.highlight {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            box-shadow: 0 4px 20px rgba(6, 182, 212, 0.4);
+        }
+
+        .flow-arrow {
+            font-size: 2rem;
+            color: var(--primary);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--card-bg) 0%, #1e3a5a 100%);
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-shadow: 0 0 20px rgba(6, 182, 212, 0.5);
+        }
+
+        .stat-label {
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        .demo-section {
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+            color: white;
+            border-radius: 20px;
+            padding: 40px;
+            margin: 40px 0;
+        }
+
+        .demo-section h3 {
+            color: white;
+        }
+
+        .comparison-table {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .comparison-col {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .comparison-col h4 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .comparison-col ul {
+            list-style: none;
+        }
+
+        .comparison-col li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+
+        .comparison-col li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--success);
+            font-weight: bold;
+        }
+
+        .formula {
+            background: linear-gradient(135deg, #78350f 0%, #92400e 100%);
+            border: 2px solid #fbbf24;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            font-size: 1.2rem;
+            margin: 20px 0;
+            font-family: 'Times New Roman', serif;
+            color: #fef3c7;
+            box-shadow: 0 4px 15px rgba(251, 191, 36, 0.2);
+        }
+
+        .param-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            border-left: 4px solid var(--accent);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .param-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .param-name {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--primary);
+            font-family: 'Fira Code', monospace;
+        }
+
+        .param-type {
+            background: linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%);
+            color: #e9d5ff;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .param-visual {
+            background: #0f172a;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            color: #a5f3fc;
+        }
+
+        footer {
+            background: linear-gradient(135deg, #020617 0%, #0f172a 100%);
+            color: #cbd5e1;
+            padding: 50px 20px;
+            text-align: center;
+            border-top: 2px solid var(--primary);
+        }
+        
+        .footer-credit {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            font-size: 1rem;
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .comparison-table {
+                grid-template-columns: 1fr;
+            }
+
+            .flow-container {
+                flex-direction: column;
+            }
+
+            .flow-arrow {
+                transform: rotate(90deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <h1>🖼️ Image Captioning</h1>
+        <p>Learn how AI automatically generates natural language descriptions of images using Vision-Language Models</p>
+        <span class="hero-badge">INFO 7390 • Northeastern University • 2025</span>
+    </div>
+
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="#what">What is it?</a>
+            <a href="#architecture">Architecture</a>
+            <a href="#vit">Vision Transformer</a>
+            <a href="#attention">Cross-Attention</a>
+            <a href="#blip">BLIP Model</a>
+            <a href="#demo">Demo Results</a>
+            <a href="#parameters">Parameters</a>
+            <a href="#hyperparameters">Hyperparameters Deep Dive</a>
+            <a href="#evaluation">Evaluation</a>
+            <a href="#gigo">GIGO</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <section id="what">
+            <h2>What is Image Captioning?</h2>
+            
+            <p><strong>Image captioning</strong> is a multimodal AI task that sits at the intersection of <strong>Computer Vision</strong> and <strong>Natural Language Processing (NLP)</strong>. Given an image, the model generates a coherent, accurate description of what's happening in the scene.</p>
+
+            <div class="flow-container">
+                <div class="flow-box">
+                    <div style="font-size: 2rem;">🖼️</div>
+                    <div>Input Image</div>
+                </div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-box highlight">
+                    <div style="font-size: 2rem;">🧠</div>
+                    <div>BLIP Model</div>
+                </div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-box">
+                    <div style="font-size: 2rem;">📝</div>
+                    <div>Caption Text</div>
+                </div>
+            </div>
+
+            <div class="info-box note">
+                <div class="info-box-title">💡 Think of it like this</div>
+                <p>Imagine describing a photo to someone who can't see it. You need to identify what's important (objects, actions, scene) and communicate it clearly in natural language. That's exactly what image captioning does!</p>
+            </div>
+
+            <h3>Why is it Challenging?</h3>
+            <p>The model must simultaneously perform multiple complex tasks:</p>
+            
+            <table>
+                <tr>
+                    <th>Task</th>
+                    <th>Challenge</th>
+                    <th>Example</th>
+                </tr>
+                <tr>
+                    <td><strong>Object Recognition</strong></td>
+                    <td>Identify all relevant entities</td>
+                    <td>Dog, ball, grass, trees</td>
+                </tr>
+                <tr>
+                    <td><strong>Attribute Detection</strong></td>
+                    <td>Recognize properties</td>
+                    <td>"Golden" retriever, "red" ball</td>
+                </tr>
+                <tr>
+                    <td><strong>Relationship Understanding</strong></td>
+                    <td>Comprehend how objects relate</td>
+                    <td>Dog is <em>playing with</em> ball</td>
+                </tr>
+                <tr>
+                    <td><strong>Action Recognition</strong></td>
+                    <td>Determine what's happening</td>
+                    <td>Playing fetch (not sleeping)</td>
+                </tr>
+                <tr>
+                    <td><strong>Language Generation</strong></td>
+                    <td>Produce grammatical sentences</td>
+                    <td>Proper word order, tense</td>
+                </tr>
+            </table>
+
+            <h3>Real-World Applications</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">285M</div>
+                    <div class="stat-label">Visually impaired people helped by alt-text</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">2B+</div>
+                    <div class="stat-label">Images uploaded daily to social media</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">80%</div>
+                    <div class="stat-label">Reduction in manual cataloging effort</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">385M</div>
+                    <div class="stat-label">Parameters in BLIP model</div>
+                </div>
+            </div>
+        </section>
+
+        <section id="architecture">
+            <h2>Encoder-Decoder Architecture</h2>
+            
+            <p>Image captioning uses an <strong>encoder-decoder</strong> architecture — the same design used in machine translation. The encoder processes the input (image) into a rich representation, and the decoder converts that into output (text).</p>
+
+            <div style="background: linear-gradient(135deg, #020617 0%, #1e293b 100%); border-radius: 16px; padding: 40px; margin: 20px 0; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                <div style="text-align: center; color: #06b6d4; font-size: 1.3rem; font-weight: 600; margin-bottom: 30px;">ENCODER-DECODER ARCHITECTURE</div>
+                
+                <div style="background: linear-gradient(135deg, #1e3a8a 0%, #4c1d95 100%); border: 2px solid #06b6d4; border-radius: 12px; padding: 20px; margin: 20px auto; max-width: 600px;">
+                    <div style="color: #fbbf24; font-weight: 600; margin-bottom: 10px;">📷 IMAGE ENCODER (Vision Transformer)</div>
+                    <div style="color: #e2e8f0; font-size: 0.9rem;">Image (384×384) → Patch Embed (576 patches) → ViT ×12 Layers (Self-Attention) → Features (577×768)</div>
+                </div>
+                
+                <div style="text-align: center; font-size: 2rem; color: #06b6d4; margin: 15px 0;">↓</div>
+                
+                <div style="background: #064e3b; border: 2px solid #10b981; border-radius: 12px; padding: 15px; margin: 20px auto; max-width: 500px; text-align: center;">
+                    <div style="color: #86efac; font-weight: 600;">🔍 CROSS-ATTENTION</div>
+                    <div style="color: #d1fae5; font-size: 0.9rem; margin-top: 5px;">"Which parts of the image matter for this word?"</div>
+                </div>
+                
+                <div style="text-align: center; font-size: 2rem; color: #06b6d4; margin: 15px 0;">↓</div>
+                
+                <div style="background: linear-gradient(135deg, #4c1d95 0%, #1e3a8a 100%); border: 2px solid #8b5cf6; border-radius: 12px; padding: 20px; margin: 20px auto; max-width: 600px;">
+                    <div style="color: #fbbf24; font-weight: 600; margin-bottom: 10px;">📝 TEXT DECODER (Transformer)</div>
+                    <div style="color: #e2e8f0; font-size: 0.9rem;">[START] → Decoder ×12 Layers (Self-Attn + Cross-Attn) → LM Head → Next Token</div>
+                </div>
+            </div>
+
+            <h3>How Text Generation Works</h3>
+            <p>The decoder generates text <strong>autoregressively</strong> — one word at a time:</p>
+            
+            <div class="card card-highlight">
+                <ol style="margin-left: 20px;">
+                    <li><strong>Step 1:</strong> Input <code>[START]</code> token → Model predicts "A"</li>
+                    <li><strong>Step 2:</strong> Input <code>[START] A</code> → Model predicts "dog"</li>
+                    <li><strong>Step 3:</strong> Input <code>[START] A dog</code> → Model predicts "playing"</li>
+                    <li><strong>Step 4:</strong> Continue until model predicts <code>[END]</code> token</li>
+                </ol>
+            </div>
+        </section>
+
+        <section id="vit">
+            <h2>Vision Transformer (ViT)</h2>
+            
+            <p>The <strong>Vision Transformer</strong> revolutionized computer vision by applying transformer architecture to images. The key insight: treat an image as a sequence of patches, just like a sentence is a sequence of words.</p>
+
+            <div style="background: linear-gradient(135deg, #020617 0%, #1e293b 100%); border-radius: 16px; padding: 30px; margin: 20px 0; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                <div style="display: flex; gap: 40px; align-items: center; justify-content: center; flex-wrap: wrap;">
+                    <div style="text-align: center;">
+                        <div style="color: #fbbf24; margin-bottom: 10px; font-weight: 600;">Original Image (384×384)</div>
+                        <div style="border: 2px solid #06b6d4; border-radius: 8px; padding: 30px 40px; background: #1e293b;">
+                            <div style="font-size: 3rem;">🐕 🌳</div>
+                            <div style="font-size: 2rem; margin-top: 10px;">🎾</div>
+                        </div>
+                    </div>
+                    
+                    <div style="font-size: 2rem; color: #06b6d4;">→</div>
+                    
+                    <div style="text-align: center;">
+                        <div style="color: #fbbf24; margin-bottom: 10px; font-weight: 600;">Split into 576 Patches</div>
+                        <div style="display: grid; grid-template-columns: repeat(5, 40px); gap: 2px;">
+                            <div style="border: 1px solid #334155; padding: 8px; background: #1e293b; text-align: center; font-size: 0.7rem; color: #94a3b8;">1</div>
+                            <div style="border: 1px solid #334155; padding: 8px; background: #1e293b; text-align: center; font-size: 0.7rem; color: #94a3b8;">2</div>
+                            <div style="border: 1px solid #334155; padding: 8px; background: #1e293b; text-align: center; font-size: 0.7rem; color: #94a3b8;">3</div>
+                            <div style="border: 1px solid #334155; padding: 8px; background: #1e293b; text-align: center; font-size: 0.7rem; color: #94a3b8;">4</div>
+                            <div style="border: 1px solid #334155; padding: 8px; background: #1e293b; text-align: center; font-size: 0.7rem; color: #94a3b8;">5</div>
+                            <div style="border: 1px solid #334155; padding: 8px; background: #1e293b; text-align: center; font-size: 0.7rem; color: #94a3b8;">6</div>
+                            <div style="border: 2px solid #10b981; padding: 8px; background: #064e3b; text-align: center; font-size: 1rem;">🐕</div>
+                            <div style="border: 1px solid #334155; padding: 8px; background: #1e293b; text-align: center; font-size: 0.7rem; color: #94a3b8;">8</div>
+                            <div style="border: 1px solid #334155; padding: 8px; background: #1e293b; text-align: center; font-size: 0.7rem; color: #94a3b8;">9</div>
+                            <div style="border: 2px solid #10b981; padding: 8px; background: #064e3b; text-align: center; font-size: 1rem;">🌳</div>
+                            <div style="border: 1px solid #334155; padding: 8px; background: #1e293b; text-align: center; font-size: 0.7rem; color: #94a3b8;">11</div>
+                            <div style="border: 1px solid #334155; padding: 8px; background: #1e293b; text-align: center; font-size: 0.7rem; color: #94a3b8;">12</div>
+                            <div style="border: 2px solid #fbbf24; padding: 8px; background: #78350f; text-align: center; font-size: 1rem;">🎾</div>
+                            <div style="border: 1px solid #334155; padding: 8px; background: #1e293b; text-align: center; font-size: 0.7rem; color: #94a3b8;">14</div>
+                            <div style="border: 1px solid #334155; padding: 8px; background: #1e293b; text-align: center; font-size: 0.7rem; color: #94a3b8;">15</div>
+                        </div>
+                        <div style="color: #94a3b8; font-size: 0.85rem; margin-top: 10px;">24×24 grid = 576 patches</div>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 25px; color: #e2e8f0; font-size: 0.95rem;">
+                    Each 16×16×3 patch → Linear Embedding → 768-dimensional vector
+                </div>
+            </div>
+
+            <div class="info-box tip">
+                <div class="info-box-title">🚀 Why Patches Instead of Pixels?</div>
+                <table>
+                    <tr>
+                        <th>Approach</th>
+                        <th>Sequence Length</th>
+                        <th>Feasibility</th>
+                    </tr>
+                    <tr>
+                        <td>Individual pixels</td>
+                        <td>384×384 = 147,456</td>
+                        <td>❌ Too expensive</td>
+                    </tr>
+                    <tr>
+                        <td>16×16 patches</td>
+                        <td>24×24 = 576</td>
+                        <td>✅ Practical!</td>
+                    </tr>
+                </table>
+            </div>
+
+            <h3>ViT Processing Steps</h3>
+            <div class="card">
+                <ol style="margin-left: 20px;">
+                    <li><strong>Divide:</strong> Split image into 576 patches (24×24 grid)</li>
+                    <li><strong>Embed:</strong> Linear projection converts each patch to 768-dim vector</li>
+                    <li><strong>Position:</strong> Add positional encodings (model needs to know where each patch is)</li>
+                    <li><strong>CLS Token:</strong> Prepend special [CLS] token (contains global image summary)</li>
+                    <li><strong>Transform:</strong> Process through 12 transformer layers with self-attention</li>
+                </ol>
+            </div>
+        </section>
+
+        <section id="attention">
+            <h2>Cross-Attention Mechanism</h2>
+            
+            <p><strong>Cross-attention</strong> is the bridge between vision and language. It allows the text decoder to dynamically "look at" different parts of the image while generating each word.</p>
+
+            <div class="card card-highlight">
+                <h4>The Intuition 👀</h4>
+                <p>Imagine describing a photo to a friend:</p>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>When you say <strong>"dog"</strong> → your eyes focus on the dog</li>
+                    <li>When you say <strong>"beach"</strong> → your eyes scan the background</li>
+                    <li>When you say <strong>"ball"</strong> → your eyes find the ball</li>
+                </ul>
+                <p style="margin-top: 10px;">Cross-attention does exactly this — it computes <strong>attention weights</strong> that determine how much each image patch influences each generated word.</p>
+            </div>
+
+            <h3>The Mathematics</h3>
+            <div class="formula">
+                Attention(Q, K, V) = softmax(QK<sup>T</sup> / √d<sub>k</sub>) × V
+            </div>
+
+            <table>
+                <tr>
+                    <th>Component</th>
+                    <th>Source</th>
+                    <th>Role</th>
+                </tr>
+                <tr>
+                    <td><strong>Q (Query)</strong></td>
+                    <td>Text decoder</td>
+                    <td>"What am I looking for?"</td>
+                </tr>
+                <tr>
+                    <td><strong>K (Key)</strong></td>
+                    <td>Image encoder</td>
+                    <td>"What does each patch contain?"</td>
+                </tr>
+                <tr>
+                    <td><strong>V (Value)</strong></td>
+                    <td>Image encoder</td>
+                    <td>"What information should I extract?"</td>
+                </tr>
+            </table>
+
+            <div style="background: linear-gradient(135deg, #020617 0%, #1e293b 100%); border-radius: 16px; padding: 30px; margin: 20px 0; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                <div style="text-align: center; color: #fbbf24; font-size: 1.2rem; font-weight: 600; margin-bottom: 20px;">
+                    Generating word after "A dog playing..."
+                </div>
+                
+                <div style="text-align: center; color: #94a3b8; margin-bottom: 20px;">
+                    Query from decoder: "What should come next?"
+                </div>
+                
+                <div style="background: #0f172a; border: 2px solid #8b5cf6; border-radius: 12px; padding: 25px; max-width: 600px; margin: 0 auto;">
+                    <div style="color: #a5f3fc; font-weight: 600; margin-bottom: 15px; text-align: center;">ATTENTION SCORES (per patch)</div>
+                    
+                    <div style="display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #334155;">
+                        <span style="color: #94a3b8;">Patch 1 (sky):</span>
+                        <span style="color: #ef4444;">0.01 ← Low</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #334155;">
+                        <span style="color: #94a3b8;">Patch 50 (grass):</span>
+                        <span style="color: #ef4444;">0.02 ← Low</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #334155;">
+                        <span style="color: #94a3b8;">Patch 150 (dog):</span>
+                        <span style="color: #fbbf24;">0.15 ← Medium</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 10px; background: linear-gradient(135deg, #064e3b 0%, #065f46 100%); border-radius: 6px; margin: 5px 0;">
+                        <span style="color: #d1fae5; font-weight: 600;">Patch 200 (ball): 🎾</span>
+                        <span style="color: #10b981; font-weight: 600;">0.45 ← HIGH!</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px;">
+                        <span style="color: #94a3b8;">Patch 300 (tree):</span>
+                        <span style="color: #ef4444;">0.01 ← Low</span>
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: #1e3a8a; border-radius: 8px; text-align: center; color: #86efac; font-weight: 600;">
+                        ✓ Result: Focus on ball → Predicts "fetch"
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="blip">
+            <h2>BLIP Model</h2>
+            
+            <p><strong>BLIP</strong> (Bootstrapping Language-Image Pre-training) from Salesforce Research is a state-of-the-art vision-language model that we use for this workshop.</p>
+
+            <table>
+                <tr>
+                    <th>Specification</th>
+                    <th>Value</th>
+                </tr>
+                <tr>
+                    <td>Total Parameters</td>
+                    <td><strong>~385 Million</strong></td>
+                </tr>
+                <tr>
+                    <td>Vision Encoder</td>
+                    <td>ViT-B/16, 12 layers, 768 hidden dim</td>
+                </tr>
+                <tr>
+                    <td>Text Decoder</td>
+                    <td>12 layers, vocabulary 30,522</td>
+                </tr>
+                <tr>
+                    <td>Training Data</td>
+                    <td>129 Million image-text pairs</td>
+                </tr>
+                <tr>
+                    <td>Input Resolution</td>
+                    <td>384×384 or 224×224 pixels</td>
+                </tr>
+                <tr>
+                    <td>Inference Speed</td>
+                    <td>~100ms (GPU) / ~5s (CPU)</td>
+                </tr>
+            </table>
+
+            <h3>Why BLIP?</h3>
+            <div class="comparison-table">
+                <div class="comparison-col">
+                    <h4>✅ Advantages</h4>
+                    <ul>
+                        <li>Excellent zero-shot performance</li>
+                        <li>Fits on free Colab GPU</li>
+                        <li>Easy Hugging Face integration</li>
+                        <li>Supports conditional prompts</li>
+                        <li>Open source (free to use)</li>
+                    </ul>
+                </div>
+                <div class="comparison-col">
+                    <h4>⚠️ Limitations</h4>
+                    <ul>
+                        <li>English only</li>
+                        <li>Trained on natural images</li>
+                        <li>Can hallucinate details</li>
+                        <li>CPU inference is slow</li>
+                        <li>No fine-grained control</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="demo">
+            <h2>Demo Results</h2>
+            
+            <p>Here are actual results from running the BLIP model on test images:</p>
+
+            <div class="image-grid">
+                <div class="image-card">
+                    <img src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400" alt="Dog on beach">
+                    <div class="image-card-content">
+                        <h4>🐕 Dog Image</h4>
+                        <div class="caption-output">
+                            "a brown and white dog standing on a beach"
+                        </div>
+                    </div>
+                </div>
+                <div class="image-card">
+                    <img src="https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=400" alt="City skyline">
+                    <div class="image-card-content">
+                        <h4>🏙️ City Image</h4>
+                        <div class="caption-output">
+                            "a city skyline with tall buildings at night"
+                        </div>
+                    </div>
+                </div>
+                <div class="image-card">
+                    <img src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400" alt="Food plate">
+                    <div class="image-card-content">
+                        <h4>🍽️ Food Image</h4>
+                        <div class="caption-output">
+                            "a plate of food with meat and vegetables"
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Conditional Captioning Results</h3>
+            <p>Different prompts guide the model to produce different outputs:</p>
+            
+            <div class="card">
+                <table>
+                    <tr>
+                        <th>Prompt</th>
+                        <th>Output</th>
+                    </tr>
+                    <tr>
+                        <td><code>None (unconditional)</code></td>
+                        <td>"a brown and white dog standing on a beach"</td>
+                    </tr>
+                    <tr>
+                        <td><code>"this is"</code></td>
+                        <td>"this is an image of a dog on the beach"</td>
+                    </tr>
+                    <tr>
+                        <td><code>"a professional photo showing"</code></td>
+                        <td>"a professional photo showing a dog on the beach"</td>
+                    </tr>
+                </table>
+            </div>
+        </section>
+
+        <section id="parameters">
+            <h2>Generation Parameters</h2>
+            
+            <p>How we generate text significantly affects output quality. There are two main strategies:</p>
+
+            <div class="comparison-table">
+                <div class="comparison-col">
+                    <h4>🎯 Beam Search</h4>
+                    <ul>
+                        <li>Deterministic (same input = same output)</li>
+                        <li>Explores multiple candidates</li>
+                        <li>More fluent, coherent</li>
+                        <li>Can be repetitive</li>
+                        <li>Controlled by <code>num_beams</code></li>
+                    </ul>
+                </div>
+                <div class="comparison-col">
+                    <h4>🎲 Sampling</h4>
+                    <ul>
+                        <li>Stochastic (adds randomness)</li>
+                        <li>Different outputs each time</li>
+                        <li>More creative, diverse</li>
+                        <li>Can be incoherent</li>
+                        <li>Controlled by <code>temperature</code></li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>Parameter Reference</h3>
+            <table>
+                <tr>
+                    <th>Parameter</th>
+                    <th>Range</th>
+                    <th>Low Value</th>
+                    <th>High Value</th>
+                </tr>
+                <tr>
+                    <td><code>num_beams</code></td>
+                    <td>1-10</td>
+                    <td>Fast, greedy</td>
+                    <td>Thorough, slower</td>
+                </tr>
+                <tr>
+                    <td><code>temperature</code></td>
+                    <td>0.1-2.0</td>
+                    <td>Conservative</td>
+                    <td>Creative/random</td>
+                </tr>
+                <tr>
+                    <td><code>top_p</code></td>
+                    <td>0.5-1.0</td>
+                    <td>Restricted</td>
+                    <td>More diversity</td>
+                </tr>
+                <tr>
+                    <td><code>max_length</code></td>
+                    <td>10-100</td>
+                    <td>Short captions</td>
+                    <td>Detailed captions</td>
+                </tr>
+            </table>
+
+            <div class="info-box tip">
+                <div class="info-box-title">💡 Recommended Settings</div>
+                <p><strong>For accuracy:</strong> <code>num_beams=5</code>, <code>do_sample=False</code></p>
+                <p><strong>For creativity:</strong> <code>do_sample=True</code>, <code>temperature=0.8</code></p>
+            </div>
+        </section>
+
+        <section id="hyperparameters">
+            <h2>🎛️ Hyperparameters Deep Dive</h2>
+            
+            <p>Understanding hyperparameters is crucial for controlling caption generation. Each parameter affects how the model selects the next word in the sequence.</p>
+
+            <div class="param-card">
+                <div class="param-header">
+                    <span class="param-name">max_length</span>
+                    <span class="param-type">Integer</span>
+                </div>
+                <p><strong>What it is:</strong> The maximum number of tokens (words/subwords) the model can generate in a caption.</p>
+                <p><strong>How it works:</strong> The model stops generating text when it either produces an [END] token or reaches this length limit, whichever comes first.</p>
+                <div class="param-visual">
+max_length=20 → "a dog playing fetch on the beach"
+max_length=50 → "a dog playing fetch on the beach with a red ball while the sun sets in the background"
+                </div>
+                <p><strong>Typical values:</strong> 20-50 for concise captions, 50-100 for detailed descriptions</p>
+                <div class="info-box warning">
+                    <div class="info-box-title">⚠️ Watch out!</div>
+                    <p>Too short → incomplete sentences. Too long → repetitive or hallucinated details.</p>
+                </div>
+            </div>
+
+            <div class="param-card">
+                <div class="param-header">
+                    <span class="param-name">min_length</span>
+                    <span class="param-type">Integer</span>
+                </div>
+                <p><strong>What it is:</strong> The minimum number of tokens required before the model is allowed to generate an [END] token.</p>
+                <p><strong>How it works:</strong> Prevents overly short captions by forcing the model to continue generating even if it wants to stop early.</p>
+                <div class="param-visual">
+Without min_length → "a dog"
+With min_length=10 → "a dog playing with a ball on the beach"
+                </div>
+                <p><strong>Typical values:</strong> 10-15 tokens</p>
+                <p><strong>Use case:</strong> Ensures captions are sufficiently descriptive and not truncated.</p>
+            </div>
+
+            <div class="param-card">
+                <div class="param-header">
+                    <span class="param-name">temperature</span>
+                    <span class="param-type">Float (0.0-2.0)</span>
+                </div>
+                <p><strong>What it is:</strong> Controls the randomness of predictions by scaling the logits before applying softmax.</p>
+                <p><strong>How it works:</strong> Temperature divides the model's raw scores (logits) before converting them to probabilities. Lower values make the distribution "sharper" (more peaked), higher values make it "flatter" (more uniform).</p>
+                
+                <h4>The Mathematics:</h4>
+                <div class="formula">
+                    P(word) = softmax(logits / temperature)
+                </div>
+
+                <div class="param-visual">
+temperature=0.1  → [0.9, 0.08, 0.02]  ← Very confident, picks "dog"
+temperature=1.0  → [0.6, 0.25, 0.15]  ← Balanced distribution
+temperature=2.0  → [0.4, 0.35, 0.25]  ← Flatter, more random
+                </div>
+
+                <table style="margin-top: 15px;">
+                    <tr>
+                        <th>Value</th>
+                        <th>Effect</th>
+                        <th>Output Style</th>
+                    </tr>
+                    <tr>
+                        <td><code>0.1-0.5</code></td>
+                        <td>More deterministic</td>
+                        <td>Safe, predictable, accurate</td>
+                    </tr>
+                    <tr>
+                        <td><code>0.7-1.0</code></td>
+                        <td>Balanced</td>
+                        <td>Natural variation</td>
+                    </tr>
+                    <tr>
+                        <td><code>1.5-2.0</code></td>
+                        <td>More random</td>
+                        <td>Creative, diverse, risky</td>
+                    </tr>
+                </table>
+
+                <div class="info-box tip">
+                    <div class="info-box-title">💡 Pro Tip</div>
+                    <p>Temperature only matters when <code>do_sample=True</code>. With beam search (<code>do_sample=False</code>), temperature has no effect.</p>
+                </div>
+            </div>
+
+            <div class="param-card">
+                <div class="param-header">
+                    <span class="param-name">num_beams</span>
+                    <span class="param-type">Integer (1-10)</span>
+                </div>
+                <p><strong>What it is:</strong> The number of parallel sequences (beams) explored during beam search.</p>
+                <p><strong>How it works:</strong> Instead of greedily picking the best word at each step, beam search keeps track of multiple candidate sequences and explores them in parallel, then selects the overall best sequence.</p>
+
+                <div style="background: linear-gradient(135deg, #020617 0%, #1e293b 100%); border-radius: 16px; padding: 30px; margin: 20px 0; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                    <div style="text-align: center; color: #fbbf24; font-size: 1.2rem; font-weight: 600; margin-bottom: 25px;">
+                        Beam Search with num_beams=3
+                    </div>
+                    
+                    <div style="background: #0f172a; border: 2px solid #06b6d4; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                        <div style="color: #a5f3fc; font-weight: 600; margin-bottom: 10px;">Step 1: [START]</div>
+                        <div style="margin-left: 20px; color: #e2e8f0;">
+                            <div style="margin: 5px 0;">├─→ "a" <span style="color: #94a3b8;">(score: -0.5)</span></div>
+                            <div style="margin: 5px 0;">├─→ "the" <span style="color: #94a3b8;">(score: -0.8)</span></div>
+                            <div style="margin: 5px 0;">└─→ "one" <span style="color: #94a3b8;">(score: -1.2)</span></div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: #0f172a; border: 2px solid #8b5cf6; border-radius: 12px; padding: 20px;">
+                        <div style="color: #a5f3fc; font-weight: 600; margin-bottom: 15px;">Step 2: Expand top 3</div>
+                        
+                        <div style="background: #1e293b; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                            <div style="color: #fbbf24; margin-bottom: 8px;">From "a":</div>
+                            <div style="margin-left: 20px; color: #e2e8f0;">
+                                <div style="padding: 5px; background: #064e3b; border-radius: 4px; margin: 5px 0; border: 2px solid #10b981;">
+                                    ├─→ "dog" <span style="color: #10b981; font-weight: 600;">(total: -1.0) ← BEST PATH</span>
+                                </div>
+                                <div style="margin: 5px 0;">├─→ "cat" <span style="color: #94a3b8;">(total: -1.3)</span></div>
+                                <div style="margin: 5px 0;">└─→ "bird" <span style="color: #94a3b8;">(total: -1.8)</span></div>
+                            </div>
+                        </div>
+                        
+                        <div style="background: #1e293b; border-radius: 8px; padding: 15px;">
+                            <div style="color: #fbbf24; margin-bottom: 8px;">From "the":</div>
+                            <div style="margin-left: 20px; color: #e2e8f0;">
+                                <div style="margin: 5px 0;">├─→ "dog" <span style="color: #94a3b8;">(total: -1.5)</span></div>
+                                <div style="margin: 5px 0;">└─→ "beach" <span style="color: #94a3b8;">(total: -1.7)</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px; text-align: center; color: #06b6d4; font-style: italic;">
+                        Keep top 3 beams and continue generating...
+                    </div>
+                </div>
+
+                <table style="margin-top: 15px;">
+                    <tr>
+                        <th>num_beams</th>
+                        <th>Search Strategy</th>
+                        <th>Quality vs Speed</th>
+                    </tr>
+                    <tr>
+                        <td><code>1</code></td>
+                        <td>Greedy (no beam search)</td>
+                        <td>Fastest, lowest quality</td>
+                    </tr>
+                    <tr>
+                        <td><code>3-5</code></td>
+                        <td>Moderate exploration</td>
+                        <td>Good balance</td>
+                    </tr>
+                    <tr>
+                        <td><code>8-10</code></td>
+                        <td>Thorough exploration</td>
+                        <td>Best quality, slowest</td>
+                    </tr>
+                </table>
+
+                <p><strong>Trade-off:</strong> Higher beams = better captions but slower inference. Computational cost increases linearly with num_beams.</p>
+            </div>
+
+            <div class="param-card">
+                <div class="param-header">
+                    <span class="param-name">top_k</span>
+                    <span class="param-type">Integer</span>
+                </div>
+                <p><strong>What it is:</strong> Limits sampling to only the top-k most probable tokens at each step.</p>
+                <p><strong>How it works:</strong> Before sampling, the model filters out all but the k highest probability tokens, then renormalizes and samples from this restricted set.</p>
+
+                <div class="param-visual">
+All vocabulary (30,522 words) → Top-50 words → Sample from these 50
+                </div>
+
+                <table style="margin-top: 15px;">
+                    <tr>
+                        <th>Value</th>
+                        <th>Effect</th>
+                    </tr>
+                    <tr>
+                        <td><code>top_k=10</code></td>
+                        <td>Very restricted, conservative choices</td>
+                    </tr>
+                    <tr>
+                        <td><code>top_k=50</code></td>
+                        <td>Standard setting, balanced</td>
+                    </tr>
+                    <tr>
+                        <td><code>top_k=100</code></td>
+                        <td>More diversity, some unusual words</td>
+                    </tr>
+                </table>
+
+                <p><strong>Use case:</strong> Prevents the model from occasionally selecting very low-probability, nonsensical words.</p>
+            </div>
+
+            <div class="param-card">
+                <div class="param-header">
+                    <span class="param-name">top_p</span>
+                    <span class="param-type">Float (0.0-1.0)</span>
+                </div>
+                <p><strong>What it is:</strong> Also called "nucleus sampling" – samples from the smallest set of tokens whose cumulative probability exceeds p.</p>
+                <p><strong>How it works:</strong> Instead of a fixed number of tokens (top_k), top_p adapts dynamically. It includes tokens until their cumulative probability reaches the threshold p.</p>
+
+                <div class="param-visual">
+Token probabilities: [0.5, 0.3, 0.1, 0.05, 0.03, 0.02...]
+
+top_p=0.9  → Includes tokens until sum ≥ 0.9
+           → Uses first 3 tokens (0.5 + 0.3 + 0.1 = 0.9)
+
+top_p=0.95 → Uses first 4 tokens (0.5 + 0.3 + 0.1 + 0.05 = 0.95)
+                </div>
+
+                <table style="margin-top: 15px;">
+                    <tr>
+                        <th>Value</th>
+                        <th>Behavior</th>
+                    </tr>
+                    <tr>
+                        <td><code>0.8-0.9</code></td>
+                        <td>Conservative, high-quality outputs</td>
+                    </tr>
+                    <tr>
+                        <td><code>0.92-0.95</code></td>
+                        <td>Standard range, good balance</td>
+                    </tr>
+                    <tr>
+                        <td><code>0.98-1.0</code></td>
+                        <td>Maximum diversity, allows rare words</td>
+                    </tr>
+                </table>
+
+                <div class="info-box note">
+                    <div class="info-box-title">🔄 top_k vs top_p</div>
+                    <p>These are often used together! The model first applies top_k filtering, then applies top_p to the remaining tokens. You can use one or both.</p>
+                </div>
+            </div>
+
+            <div class="param-card">
+                <div class="param-header">
+                    <span class="param-name">do_sample</span>
+                    <span class="param-type">Boolean</span>
+                </div>
+                <p><strong>What it is:</strong> Determines whether to use sampling (stochastic) or greedy/beam search (deterministic).</p>
+                <p><strong>How it works:</strong> This is the master switch that controls the generation strategy.</p>
+
+                <div class="comparison-table" style="margin-top: 15px;">
+                    <div class="comparison-col">
+                        <h4>do_sample=False</h4>
+                        <ul>
+                            <li>Uses beam search or greedy decoding</li>
+                            <li>Always picks highest probability token</li>
+                            <li>Same input → same output (deterministic)</li>
+                            <li>More fluent and coherent</li>
+                            <li>Can be repetitive or generic</li>
+                        </ul>
+                    </div>
+                    <div class="comparison-col">
+                        <h4>do_sample=True</h4>
+                        <ul>
+                            <li>Uses sampling-based generation</li>
+                            <li>Probabilistically selects tokens</li>
+                            <li>Same input → different outputs</li>
+                            <li>More diverse and creative</li>
+                            <li>Controlled by temperature, top_k, top_p</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="param-card">
+                <div class="param-header">
+                    <span class="param-name">repetition_penalty</span>
+                    <span class="param-type">Float (1.0-2.0)</span>
+                </div>
+                <p><strong>What it is:</strong> Penalizes tokens that have already appeared in the generated sequence to reduce repetition.</p>
+                <p><strong>How it works:</strong> For tokens already generated, their logits are divided by this penalty value, making them less likely to be selected again.</p>
+
+                <div class="param-visual">
+Without penalty → "a dog playing with a dog and a dog"
+With penalty=1.2 → "a dog playing with a ball on the beach"
+                </div>
+
+                <table style="margin-top: 15px;">
+                    <tr>
+                        <th>Value</th>
+                        <th>Effect</th>
+                    </tr>
+                    <tr>
+                        <td><code>1.0</code></td>
+                        <td>No penalty (default)</td>
+                    </tr>
+                    <tr>
+                        <td><code>1.1-1.3</code></td>
+                        <td>Mild penalty, reduces obvious repetition</td>
+                    </tr>
+                    <tr>
+                        <td><code>1.5-2.0</code></td>
+                        <td>Strong penalty, forces diversity</td>
+                    </tr>
+                </table>
+
+                <p><strong>Use case:</strong> Essential when you notice the model repeating the same words or phrases.</p>
+            </div>
+
+            <div class="param-card">
+                <div class="param-header">
+                    <span class="param-name">no_repeat_ngram_size</span>
+                    <span class="param-type">Integer</span>
+                </div>
+                <p><strong>What it is:</strong> Prevents n-grams (sequences of n words) from appearing more than once in the output.</p>
+                <p><strong>How it works:</strong> The model tracks all n-grams generated so far and blocks any token that would create a duplicate n-gram.</p>
+
+                <div class="param-visual">
+no_repeat_ngram_size=2 (bigrams):
+✗ Blocks: "a dog... a dog" (duplicate bigram)
+✓ Allows: "a dog... the dog" (different bigram)
+
+no_repeat_ngram_size=3 (trigrams):
+✗ Blocks: "on the beach... on the beach"
+✓ Allows: "on the beach... on the shore"
+                </div>
+
+                <p><strong>Typical values:</strong> 2-3. Higher values are too restrictive.</p>
+            </div>
+
+            <h3>⚙️ Hyperparameter Combinations</h3>
+            
+            <div class="card">
+                <h4>Recipe 1: Maximum Accuracy</h4>
+                <div class="code-block">
+<span class="keyword">generate</span>(
+    max_length=<span class="string">30</span>,
+    num_beams=<span class="string">5</span>,
+    do_sample=<span class="keyword">False</span>,
+    repetition_penalty=<span class="string">1.2</span>
+)
+                </div>
+                <p><strong>Best for:</strong> Production systems, accessibility tools, critical applications</p>
+            </div>
+
+            <div class="card">
+                <h4>Recipe 2: Creative & Diverse</h4>
+                <div class="code-block">
+<span class="keyword">generate</span>(
+    max_length=<span class="string">50</span>,
+    do_sample=<span class="keyword">True</span>,
+    temperature=<span class="string">0.8</span>,
+    top_p=<span class="string">0.95</span>,
+    top_k=<span class="string">50</span>
+)
+                </div>
+                <p><strong>Best for:</strong> Creative applications, generating multiple caption options</p>
+            </div>
+
+            <div class="card">
+                <h4>Recipe 3: Balanced</h4>
+                <div class="code-block">
+<span class="keyword">generate</span>(
+    max_length=<span class="string">40</span>,
+    num_beams=<span class="string">3</span>,
+    do_sample=<span class="keyword">True</span>,
+    temperature=<span class="string">0.7</span>,
+    repetition_penalty=<span class="string">1.1</span>
+)
+                </div>
+                <p><strong>Best for:</strong> General purpose, good quality with some variation</p>
+            </div>
+        </section>
+
+        <section id="evaluation">
+            <h2>Evaluation Metrics</h2>
+            
+            <p>No single metric captures caption quality. We use two complementary approaches:</p>
+
+            <div class="comparison-table">
+                <div class="comparison-col">
+                    <h4>📊 BLEU Score</h4>
+                    <ul>
+                        <li>Measures n-gram overlap</li>
+                        <li>Fast and interpretable</li>
+                        <li>Industry standard</li>
+                        <li>Misses synonyms</li>
+                        <li>"dog" vs "canine" = 0 overlap</li>
+                    </ul>
+                </div>
+                <div class="comparison-col">
+                    <h4>🧠 Semantic Similarity</h4>
+                    <ul>
+                        <li>Compares meaning</li>
+                        <li>Uses embeddings</li>
+                        <li>Catches paraphrases</li>
+                        <li>Slower (needs model)</li>
+                        <li>"dog" vs "canine" = high score</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>When Metrics Disagree</h3>
+            <table>
+                <tr>
+                    <th>Test Case</th>
+                    <th>BLEU</th>
+                    <th>Semantic</th>
+                    <th>Interpretation</th>
+                </tr>
+                <tr>
+                    <td>Identical sentences</td>
+                    <td>1.0</td>
+                    <td>1.0</td>
+                    <td>Both agree ✓</td>
+                </tr>
+                <tr>
+                    <td>Paraphrases</td>
+                    <td>0.2</td>
+                    <td>0.9</td>
+                    <td>Semantic wins — same meaning</td>
+                </tr>
+                <tr>
+                    <td>Word order change (different meaning)</td>
+                    <td>0.8</td>
+                    <td>0.3</td>
+                    <td>BLEU fooled!</td>
+                </tr>
+                <tr>
+                    <td>Completely different</td>
+                    <td>0.0</td>
+                    <td>0.1</td>
+                    <td>Both agree ✓</td>
+                </tr>
+            </table>
+
+            <div class="info-box warning">
+                <div class="info-box-title">⚠️ Key Insight</div>
+                <p>Always use <strong>both metrics</strong> together. BLEU catches surface-level matching, semantic similarity captures meaning. Neither alone is sufficient!</p>
+            </div>
+        </section>
+
+        <section id="gigo">
+            <h2>GIGO: Garbage In, Garbage Out</h2>
+            
+            <p><strong>GIGO</strong> is critical for multimodal AI. Unlike text where typos are obvious, image quality problems are subtle. A blurry or dark image produces poor captions without obvious errors.</p>
+
+            <h3>Quality Checks</h3>
+            <table>
+                <tr>
+                    <th>Check</th>
+                    <th>Threshold</th>
+                    <th>Why It Matters</th>
+                </tr>
+                <tr>
+                    <td>Resolution</td>
+                    <td>Min 100×100 px</td>
+                    <td>Low-res images lose object detail</td>
+                </tr>
+                <tr>
+                    <td>Aspect Ratio</td>
+                    <td>Max 3:1</td>
+                    <td>Extreme ratios indicate cropping issues</td>
+                </tr>
+                <tr>
+                    <td>Brightness</td>
+                    <td>30-240 (0-255)</td>
+                    <td>Too dark/bright loses information</td>
+                </tr>
+                <tr>
+                    <td>Color Variance</td>
+                    <td>Min std of 15</td>
+                    <td>Low variance = blank/corrupted image</td>
+                </tr>
+            </table>
+
+            <h3>Confidence Estimation</h3>
+            <p>Even with good inputs, models can be uncertain. We estimate confidence by:</p>
+            
+            <div class="card card-highlight">
+                <ol style="margin-left: 20px;">
+                    <li>Generate <strong>multiple captions</strong> with sampling enabled</li>
+                    <li>Measure <strong>consistency</strong> across samples</li>
+                    <li>High consistency = confident model</li>
+                    <li>Divergent samples = uncertain, flag for review</li>
+                </ol>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Confidence estimation via sampling</span>
+samples = [generate_caption(image, <span class="keyword">do_sample</span>=<span class="keyword">True</span>) <span class="keyword">for</span> _ <span class="keyword">in</span> range(5)]
+
+<span class="comment"># If all samples agree → confident</span>
+<span class="comment"># If samples diverge → uncertain</span>
+consistency = average_pairwise_similarity(samples)
+            </div>
+        </section>
+
+        <section>
+            <h2>Course Theme Connections</h2>
+            
+            <table>
+                <tr>
+                    <th>INFO 7390 Theme</th>
+                    <th>Application in Workshop</th>
+                </tr>
+                <tr>
+                    <td><strong>GIGO</strong></td>
+                    <td>Quality analyzer validates inputs before captioning</td>
+                </tr>
+                <tr>
+                    <td><strong>Botspeak</strong></td>
+                    <td>Conditional prompts guide model output style</td>
+                </tr>
+                <tr>
+                    <td><strong>Computational Skepticism</strong></td>
+                    <td>Multi-metric evaluation, confidence estimation — don't blindly trust outputs</td>
+                </tr>
+            </table>
+        </section>
+    </div>
+
+    <footer>
+        <p><strong>Image Captioning Workshop</strong></p>
+        <p>INFO 7390: Advanced Data Science • Northeastern University • 2025</p>
+        <div class="footer-credit">Created by Abhinav Kumar Piyush</div>
+    </footer>
+</body>
+</html>
